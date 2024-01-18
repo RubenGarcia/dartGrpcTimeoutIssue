@@ -2,18 +2,18 @@ syntax = "proto3";
 
 package test;
 
-message Request {
+message MyRequest {
    bool a = 1;
    bool b = 2;
    bool c = 3;
 }
 
-message Response {
+message MyResponse {
    uint64 a = 1;
    uint64 b = 2;
    uint64 c = 3;
 }
 
-service Service {
-   rpc getService (Request) returns (Response) {}
+service MyService {
+   rpc getService (MyRequest) returns (MyResponse) {}
 }
