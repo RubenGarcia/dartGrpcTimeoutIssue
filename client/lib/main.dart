@@ -1,7 +1,7 @@
+import 'package:client/test.pbgrpc.dart';
 import 'package:flutter/material.dart';
+import 'package:grpc/grpc.dart';
 import 'package:network_info_plus/network_info_plus.dart';
-
-
 
 void main() {
   runApp(const MyApp());
@@ -58,19 +58,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
   String? myIP;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+  String remoteIP = "";
+  String log = "";
+  bool running = false;
+  MyServiceClient? myServiceClient;
+  int timeout = 50;
 
   Future<void> getIP () async {
     if (myIP != null) {
@@ -80,6 +73,52 @@ class _MyHomePageState extends State<MyHomePage> {
     String? ip= await info.getWifiIP();
     setState(() {
       myIP = ip;
+      if (ip != null) {
+        remoteIP = ip;
+      }
+    });
+  }
+
+  void resetWidget(){
+    setState((){});
+  }
+
+  void grpc() async{
+    if (running) {
+      return;
+    }
+    setState(() {
+      running = true;
+      log = "Started $remoteIP, timeout: $timeout";
+    });
+
+    ChannelOptions options = ChannelOptions(
+        credentials: const ChannelCredentials.insecure(),
+        codecRegistry:
+          CodecRegistry(codecs: const [GzipCodec(), IdentityCodec()])
+    );
+    ClientChannel channel=ClientChannel(remoteIP, port: 25000, options: options);
+    myServiceClient = MyServiceClient(channel);
+    resetWidget();
+    CallOptions callOptions=CallOptions(timeout: Duration (milliseconds: timeout));
+    MyRequest request = MyRequest();
+    request.a=true;
+    request.b=true;
+    request.c=true;
+    for (int j=0;j<5;j++) {
+      try {
+        MyResponse response = await myServiceClient!.getService(
+            request, options: callOptions);
+        log += "\nGood response";
+      } on GrpcError catch (e) {
+        log +=
+        "\nGRPC error: code ${e.code}, codename ${e.codeName}, message ${e
+            .message}";
+      }
+    }
+    setState(() {
+      log+= "\nEnded";
+      running = false;
     });
   }
 
@@ -88,58 +127,41 @@ class _MyHomePageState extends State<MyHomePage> {
     if (myIP == null) {
       getIP();
     }
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            Text("Local IP"),
+            const Text("Local IP"),
             Text(myIP==null?"Unknown":myIP!),
-          ],
+            const Text("Remote IP"),
+            TextFormField(
+              onChanged: (text){remoteIP = text;},
+              initialValue: remoteIP,
+            ),
+            const Text("Timeout (default 50)"),
+            TextFormField(
+              onChanged: (text){
+                int? t = int.parse(text);
+                if (t != null) {
+                  timeout = t;
+                }
+                },
+              initialValue: remoteIP,
+            ),
+            TextButton(
+              onPressed: grpc,
+              child: Text(running?'Waiting':'Start'),
+            ),
+            const Text("Log"),
+            Text(log),
+          ]
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
