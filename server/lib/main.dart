@@ -13,13 +13,13 @@ class MyServiceImpl extends MyServiceBase {
     // TODO: implement getService
     MyResponse response = MyResponse();
     if (request.a) {
-      response.a = 10 as Int64;
+      response.a = Int64(10);
     }
     if (request.b) {
-      response.b = 20 as Int64;
+      response.b = Int64(20);
     }
     if (request.c) {
-      response.c = 30 as Int64;
+      response.c = Int64(30);
     }
     return response;
   }
